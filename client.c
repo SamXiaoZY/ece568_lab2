@@ -38,8 +38,7 @@ int OpenConnection(const char *host, int port) {
   gethostname = gethostbyname(host);
 
   if (gethostname == NULL){
-    perror(host);
-    exit(0);
+    perror("cannot get host name!");
   }
 
 
@@ -57,7 +56,7 @@ int OpenConnection(const char *host, int port) {
   }
   if (connect(sock, (struct sockaddr*)&myaddr, sizeof(myaddr))!=0){
     close(sock);
-    perror(host);
+    perror("cannot connect!");
     exit(0);
   }
 
@@ -77,7 +76,7 @@ void verify_server_cert(SSL *ssl){
   //check if the certificate is valid
   if(SSL_get_verify_result(ssl) != X509_V_OK){
     perror(FMT_NO_VERIFY);
-    exit(0);
+ 
   }
 
   cert = SSL_get_peer_certificate(ssl);
