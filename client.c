@@ -76,7 +76,7 @@ void verify_server_cert(SSL *ssl){
   //check if the certificate is valid
   if(SSL_get_verify_result(ssl) != X509_V_OK){
     perror(FMT_NO_VERIFY);
- 
+
   }
 
   cert = SSL_get_peer_certificate(ssl);
@@ -112,57 +112,28 @@ void verify_server_cert(SSL *ssl){
  * Handle SSL client request
  * TODO: Need to modify this
  */
-int handle_request(SSL *ssl, int s) {
-  int result;
-  char buf[BUFF_SIZE];
-  char *answer = SERVER_RESPONSE;
+void handle_request(SSL *ssl, char* secret, char* buf) {
+  int len;
+  int request;
+  int n;
 
-  // Read from SSL
-  result = SSL_read(ssl, buf, BUFF_SIZE);
-  switch(SSL_get_error(ssl, result)) {
+  request = strlen(secret);
+
+  n = SSL_write(ssl, secret, request);
+  switch(SSL_get_error(ssl,n)){
     case SSL_ERROR_NONE:
+      if(request != n)
+        perror("write incomplete!");
       break;
-    case SSL_ERROR_ZERO_RETURN:
-      goto shutdown;
-    case SSL_ERROR_SYSCALL:
-      printf(FMT_INCOMPLETE_CLOSE);
-      goto done;
     default:
-      printf("SSL read problem");
-  }
-  
-  // Write to SSL
-  printf(FMT_OUTPUT, buf, answer);
-  result = SSL_write(ssl,answer,strlen(answer));
-  switch(SSL_get_error(ssl,result)){
-    case SSL_ERROR_NONE:
-      if(strlen(answer)!=result)
-        printf("Incomplete write!");
-      break;
-    case SSL_ERROR_ZERO_RETURN:
-      goto shutdown;
-    case SSL_ERROR_SYSCALL:
-      printf(FMT_INCOMPLETE_CLOSE);
-      goto done;
-    default:
-      printf("SSL write problem");
-  }
-  
-  shutdown:
-  result = SSL_shutdown(ssl);
-  if(!result){
-    /* If we called SSL_shutdown() first then
-       we always get return value of '0'. In
-       this case, try again, but first send a
-       TCP FIN to trigger the other side's
-       close_notify*/
-    shutdown(s,1);
-    result=SSL_shutdown(ssl);
+      perror("SSL write problem");
   }
 
-  done:
-  SSL_free(ssl);
-  return 0;
+  len = SSL_read(ssl, buf, 256);
+  if(len < 0)
+    perror("read problem!");
+  buf[len] = '\0';
+  
 }
 
 
@@ -223,18 +194,22 @@ int main(int argc, char **argv)
   //initiates the TLS/SSL handshake with a serve
   if(SSL_connect(ssl) != 1){
     perror("TLS/SSL handshake is unsuccessful!\n");
-    EPR_print_errors_fp(stdout);
-    goto done;
+    ERROR_print_errors_fp(stdout);
   }
 
   //check server's certificate
-  if(verify_server_cert(ssl)!=1){
-    perror("not verified!");
-  }
+  verify_server_cert(ssl);
+  handle_request(ssl, secret, buf);
 
-done:
+  printf(FMT_OUTPUT, secret, buf); 
+ 
+if(SSL_shutdown(ssl) == 0){
+  perror(FMT_INCORRECT_CLOSE);
+}
+
+SSL_free(ssl)
 SSL_CTX_free(ctx);
 close(sock);
-return 1;
+return 0;
 
 }
