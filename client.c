@@ -25,7 +25,7 @@
 #define FMT_INCORRECT_CLOSE "ECE568-CLIENT: Premature close\n"
 
 #define PASSWORD "password"
-#define CLIENT_PEM_FILE "alice.pem"
+#define CLIENT_PEM_FILE "johnpub.pem"
 #define SERVER_NAME "Bob's Server"
 #define SERVER_EMAIL "ece568bob@ecf.utoronto.ca"
 
@@ -107,7 +107,6 @@ void verify_server_cert(SSL *ssl){
 
 }
 
-//copied from Sam
 /*
  * Handle SSL client request
  * TODO: Need to modify this
@@ -142,6 +141,7 @@ int main(int argc, char **argv)
 {
   int n, sock, port=PORT;
   char *host=HOST;
+
   char buf[256];
   char *secret = "What's the question?";
   
@@ -168,10 +168,9 @@ int main(int argc, char **argv)
   ctx = init_ctx(CLIENT_PEM_FILE, PASSWORD);
 
   //Only communicate with servers using SSLv3 or TLSv1.
-  SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
-
+   SSL_CTX_set_cipher_list(ctx, "SSLv3:TLSv1");
   //Only communicate with a protocol that uses the SHA1 hash function.
-  n = SSL_CTX_set_cipher_list(ctx, "SHA1");
+  SSL_CTX_set_cipher_list(ctx, "SHA1");
 
   /*
   ECE568-CLIENT: SSL connect error <processPID>:error:14077410:SSL
