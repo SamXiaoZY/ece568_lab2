@@ -228,8 +228,8 @@ int main(int argc, char **argv)
   }
 
   //check server's certificate
-  if(verify_server_cert(ssl)){
-    handle_request(ssl, secret);
+  if(verify_server_cert(ssl)!=1){
+    perror("not verified!");
   }
 
 done:
