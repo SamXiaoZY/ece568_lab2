@@ -112,7 +112,7 @@ void verify_server_cert(SSL *ssl){
  * Handle SSL client request
  * TODO: Need to modify this
  */
-void handle_request(SSL *ssl, char* secret, char* buf) {
+void check_secret(SSL *ssl, char* secret, char* buf) {
   int len;
   int request;
   int n;
@@ -123,10 +123,10 @@ void handle_request(SSL *ssl, char* secret, char* buf) {
   switch(SSL_get_error(ssl,n)){
     case SSL_ERROR_NONE:
       if(request != n)
-        perror("write incomplete!");
+        perror("writing incomplete!");
       break;
     default:
-      perror("SSL write problem");
+      perror("SSL write unsuccessful!");
   }
 
   len = SSL_read(ssl, buf, 256);
@@ -140,10 +140,8 @@ void handle_request(SSL *ssl, char* secret, char* buf) {
 
 int main(int argc, char **argv)
 {
-  int len, sock, port=PORT;
+  int n, sock, port=PORT;
   char *host=HOST;
-  struct sockaddr_in addr;
-  struct hostent *host_entry;
   char buf[256];
   char *secret = "What's the question?";
   
@@ -173,7 +171,17 @@ int main(int argc, char **argv)
   SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
 
   //Only communicate with a protocol that uses the SHA1 hash function.
-  SSL_CTX_set_cipher_list(ctx, "SHA1");
+  n = SSL_CTX_set_cipher_list(ctx, "SHA1");
+
+  /*
+  ECE568-CLIENT: SSL connect error <processPID>:error:14077410:SSL
+  routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake
+  failure:s23_clnt.c:578:
+  */
+  if(n!=1){
+    printf(FMT_CONNECT_ERR);
+    ERR_print_errors_fp(stdout);
+  }
 
   sock = OpenConnection(host, port);
 
@@ -194,12 +202,12 @@ int main(int argc, char **argv)
   //initiates the TLS/SSL handshake with a serve
   if(SSL_connect(ssl) != 1){
     perror("TLS/SSL handshake is unsuccessful!\n");
-    ERROR_print_errors_fp(stdout);
+    ERR_print_errors_fp(stdout);
   }
 
   //check server's certificate
   verify_server_cert(ssl);
-  handle_request(ssl, secret, buf);
+  check_secret(ssl, secret, buf);
 
   printf(FMT_OUTPUT, secret, buf); 
  
@@ -207,7 +215,7 @@ if(SSL_shutdown(ssl) == 0){
   perror(FMT_INCORRECT_CLOSE);
 }
 
-SSL_free(ssl)
+SSL_free(ssl);
 SSL_CTX_free(ctx);
 close(sock);
 return 0;
